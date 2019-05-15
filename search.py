@@ -4,12 +4,17 @@
 #Date:2019/05/14
 
 
+X_nums = 12
+Y_nums = 12
+
+
 key_map = {
     'LEFT': 1,
     'RIGHT': 2,
     'DOWN': 3,
     'UP': 4
 }
+actions = [[1,3,4],[2,3,4],[1,2,3],[1,2,4]]
 
 '''
 This is the alghrithm used for move snake
@@ -45,34 +50,120 @@ def naive_get_snake_move(head,food):
     else:
         return key_map['UP']
 
+import copy
+def snake_state_change(tmp_state,direction):
 
-# Test if snake collides with itself, game is over
-def is_suicide(snake):
-    for i in range(1, len(snake)):
-        if snake[i] == snake[0]:
-            return True
-    else:
+    snake_state = copy.deepcopy(tmp_state)
+    current_x_head = snake_state[0][0]
+    current_y_head = snake_state[0][1]
+
+    if direction == key_map['LEFT']:
+        current_x_head, current_y_head = current_x_head - 1, current_y_head
+        if current_x_head < 0:
+            current_x_head = X_nums - 1
+
+    if direction == key_map['RIGHT']:
+        current_x_head, current_y_head = current_x_head + 1, current_y_head
+        if current_x_head >= X_nums:
+            current_x_head = 0
+
+    if direction == key_map['DOWN']:
+        current_x_head, current_y_head = current_x_head, current_y_head + 1
+        # 这里跟其地方不太一样，是因为Y轴最下面那一块，有时候会被状态栏挡住
+        if current_y_head >= Y_nums:
+            current_y_head = 0
+
+    if direction == key_map['UP']:
+        current_x_head, current_y_head = current_x_head, current_y_head - 1
+        if current_y_head < 0:
+            current_y_head = Y_nums - 1
+
+    head = [current_x_head, current_y_head]
+
+    snake_state.insert(0, head)
+    snake_state.pop()
+
+    return snake_state
+
+
+class tree_node(object):
+    def __init__(self,snake_state,parent,action,direction):
+        self.snake_state = snake_state
+        self.parent = parent
+        self.action = action
+        self.children = []
+        self.direction = direction
+
+    def get_actions(self):
+        return actions[self.direction - 1]
+
+    def add_children(self,children):
+        self.children.append(children)
+
+    def node_safe(self):
+        # Test if snake collides with itself, game is over
+        for i in range(1, len(self.snake_state)):
+            if self.snake_state[i] == self.snake_state[0]:
+                return False
+        return True
+
+    # Test if snake eat the food
+    def node_success(self,food):
+        for pos in food:
+            if pos == self.snake_state[0]:
+                return True
         return False
 
-'''
-开始的时候，我是想利用游戏的知识，我要去考虑很多细节，
-但这种算法，就是我最开始想的，我根据他们之间的位置，
-然后考虑不碰撞的情况，来弄相应的数据
-更像是我那种决定性编程的思路
-- - -
-我需要对这个部分进行建模，
-利用图形的搜索算法，保证后续的最短路径
-同时不会导致游戏的结束
-- - -
-那么我这个搜索空间应该怎么定义，这个是个问题
-不仅仅是我的头在动，同时蛇的身体也在动，所以说这个空间的定义感觉是个动态的
-'''
+def get_move_sequence(one_node):
 
-def get_snake_move(snake,food):
+    path_list = list()
+    tmp_node = one_node
+    while tmp_node.parent is not None:
+        path_list.insert(0, tmp_node.action)
+        tmp_node = tmp_node.parent
+
+    return path_list
+
+import time
+def breadth_first_search(snake,direction,food):
+
+    head_node = tree_node(snake,None,0,direction)
+
+    if head_node.node_success(food):
+        return direction
+
+    node_queue = list()
+    node_queue.append(head_node)
+
+    while len(node_queue) > 0:
+
+        tmp_node = node_queue.pop(0)
+        for action in tmp_node.get_actions():
+            state = snake_state_change(tmp_node.snake_state,action)
+
+            tmp_node.add_children(tree_node(state,tmp_node,action,action))
+
+        for one_node in tmp_node.children:
+            #print(one_node.snake_state)
+            #break
+            print(one_node.snake_state,food)
+            if one_node.node_success(food):
+                return get_move_sequence(one_node)
+            if not one_node.node_safe():
+                continue
+            node_queue.append(one_node)
+    return None
+
+
+def get_snake_move(snake,direction,food):
 
     """
     :param snake: array_like [(x1,y1),(x2,y2)...]
                 all the position a snake take
+
+    :param direction: int
+
+
     :param food: array_like  (x,y)
                 food cor
 
@@ -80,5 +171,12 @@ def get_snake_move(snake,food):
         move : int
             the direction you want to move
     """
+    try:
+        sol = breadth_first_search(snake,direction,food)
+        return sol
+    except Exception as e:
+        print(e)
 
-    return 1
+if __name__ == "__main__":
+
+    print(breadth_first_search([[1, 2], [1, 3]], [[7,7]]))

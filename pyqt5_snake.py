@@ -23,7 +23,7 @@ class SnakeGame(QMainWindow):
 
         self.setCentralWidget(self.sboard)
         self.setWindowTitle('PyQt5 Snake game')
-        self.resize(600, 400)
+        self.resize(320, 340)
         screen = QDesktopWidget().screenGeometry()
         size = self.geometry()
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
@@ -39,16 +39,16 @@ class Board(QFrame):
     This speed is mean the timer's interval,
     so the value lower,the speed higher
     '''
-    SPEED = 50
+    SPEED = 150
 
-    WIDTHINBLOCKS = 30
-    HEIGHTINBLOCKS = 20
+    WIDTHINBLOCKS = X_nums
+    HEIGHTINBLOCKS = Y_nums
 
     def __init__(self, parent):
         super(Board, self).__init__(parent)
         self.timer = QBasicTimer()
         self.running = False
-        self.snake = [[5, 10], [5, 11]]
+        self.snake = [[5, 5], [5, 6]]
         self.current_x_head = self.snake[0][0]
         self.current_y_head = self.snake[0][1]
         self.key_map = {
@@ -60,8 +60,9 @@ class Board(QFrame):
         self.food = []
         self.grow_snake = False
         self.board = []
-        self.direction = 1
+        self.direction = 4
         self.drop_food()
+        self.move_solution = []
         self.setFocusPolicy(Qt.StrongFocus)
 
     def square_width(self):
@@ -71,12 +72,15 @@ class Board(QFrame):
         return int(self.contentsRect().height() / Board.HEIGHTINBLOCKS)
 
     def status_str(self):
-        return str("score:%d,head_x:%d,head_y:%d,food_x:%d,food_y:%d" % (
+        return str("score:%d,head_x:%d,head_y:%d,food_x:%d,food_y:%d , x :%d,y:%d" % (
                      len(self.snake) - 2,
                      self.current_x_head,
                      self.current_y_head,
                      self.food[0][0],
-                     self.food[0][1]))
+                     self.food[0][1],
+                     self.snake[1][0],
+                     self.snake[1][1]
+                    ))
 
     def start(self):
         self.msg2statusbar.emit(self.status_str())
@@ -103,6 +107,7 @@ class Board(QFrame):
             color = 0xCC66CC
             self.draw_square(painter, color,rect.left() + pos[0] * self.square_width(),
                              boardtop + pos[1] * self.square_height())
+
         for pos in self.food:
             color = 0x000000
             self.draw_square(painter, color,rect.left() + pos[0] * self.square_width(),
@@ -170,12 +175,16 @@ class Board(QFrame):
 
     def timerEvent(self, event):
         if event.timerId() == self.timer.timerId():
-            head = (self.current_x_head,self.current_y_head)
-            food = self.food[0]
 
-
-            self.direction = get_snake_move(head, food)
-
+            food = self.food
+            try:
+                if len(self.move_solution) == 0:
+                    self.move_solution = get_snake_move(self.snake, self.direction, food)
+                    self.direction = self.move_solution.pop(0)
+                else:
+                    self.direction = self.move_solution.pop(0)
+            except Exception as e:
+                print(e)
 
             self.move_snake()
             self.is_food_collision()

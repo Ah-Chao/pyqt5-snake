@@ -31,7 +31,6 @@ class SnakeGame(QMainWindow):
         self.sboard.start()
         self.show()
 
-
 class Board(QFrame):
     msg2statusbar = pyqtSignal(str)
 

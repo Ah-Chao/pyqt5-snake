@@ -14,5 +14,8 @@ This Game will test some algorithms.
 当前看来深度优先能达到最好的效果，因为贪吃蛇是没有墙的，他会一直往下
 但速度上，或者感觉上最快的，还是启发式算法，利用蛇头和食物的距离来做启发函数
 广度优先可以理解为式最直观的，每次都是直线过去，但还是说不好
+
+下面这个图片是启发式算法运作的过程
+
 - - -
 This is my first attempt to use github.

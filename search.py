@@ -5,8 +5,8 @@
 
 import copy
 import math
-X_nums = 12
-Y_nums = 12
+X_nums = 24
+Y_nums = 24
 
 key_map = {
     'LEFT': 1,
@@ -20,7 +20,7 @@ actions = [[1, 3, 4],
            [1, 2, 4]]
 
 
-def naive_get_snake_move(head,food):
+def naive_get_snake_move(head, food):
     ''''
     Using the only head and food
     See the result it can obtain.
@@ -45,7 +45,7 @@ def naive_get_snake_move(head,food):
         return key_map['UP']
 
 
-def snake_state_change(tmp_state,direction):
+def snake_state_change(tmp_state, direction, grow):
 
     snake_state = copy.deepcopy(tmp_state)
     current_x_head = snake_state[0][0]
@@ -63,7 +63,6 @@ def snake_state_change(tmp_state,direction):
 
     if direction == key_map['DOWN']:
         current_x_head, current_y_head = current_x_head, current_y_head + 1
-        # 这里跟其地方不太一样，是因为Y轴最下面那一块，有时候会被状态栏挡住
         if current_y_head >= Y_nums:
             current_y_head = 0
 
@@ -75,13 +74,14 @@ def snake_state_change(tmp_state,direction):
     head = [current_x_head, current_y_head]
 
     snake_state.insert(0, head)
-    snake_state.pop()
+    if not grow:
+        snake_state.pop()
     return snake_state
 
 
 class TreeNode(object):
-    def __init__(self,snake_state,parent,action,direction):
-        self.snake_state = snake_state
+    def __init__(self, snake_state, parent, action, direction):
+        self.snake_state = copy.deepcopy(snake_state)
         self.parent = parent
         self.action = action
         self.direction = direction
@@ -90,7 +90,7 @@ class TreeNode(object):
     def get_actions(self):
         return actions[self.direction - 1]
 
-    def add_children(self,children):
+    def add_children(self, children):
         self.children.append(children)
 
     def node_safe(self):
@@ -101,15 +101,20 @@ class TreeNode(object):
         return True
 
     # Test if snake eat the food
-    def node_success(self,food):
+    def node_success(self, food):
         for pos in food:
             if pos == self.snake_state[0]:
                 return True
         return False
 
 
+def distance_function(snake_head, food):
+    return math.sqrt(pow(snake_head[0] - food[0], 2) +
+                     pow(snake_head[1] - food[1], 2))
+
+
 def get_move_sequence(one_node):
-    path_list = list()
+    path_list = []
     tmp_node = one_node
     while tmp_node.parent is not None:
         path_list.insert(0, tmp_node.action)
@@ -118,56 +123,54 @@ def get_move_sequence(one_node):
     return path_list
 
 
-def distance_function(snake_head, food):
-    return math.sqrt(pow(snake_head[0] - food[0], 2) +
-                     pow(snake_head[1] - food[1], 2))
+def greedy_first_search(snake, direction, food, grow):
 
-
-def greedy_first_search(snake,direction,food):
-
-    head_node = TreeNode(snake,None,0,direction)
-    if head_node.node_success(food):
-        return direction
-
+    head_node = TreeNode(snake, None, 0, direction)
     node_queue = list()
-    node_queue.append(head_node)
-
     explored_cor = set()
+
+    if head_node.node_success(food):
+       return direction
+
+    node_queue.append(head_node)
     explored_cor.add(str(head_node.snake_state[0]))
 
     while len(node_queue) > 0:
-
         tmp_node = node_queue.pop(0)
         for action in tmp_node.get_actions():
-            state = snake_state_change(tmp_node.snake_state, action)
+            state = snake_state_change(tmp_node.snake_state, action, grow)
             tmp_node.add_children(TreeNode(state, tmp_node, action, action))
 
+        grow = False
         tmp_node_list = []
         for one_node in tmp_node.children:
-            if one_node.node_success(food):
-                return get_move_sequence(one_node)
             if not one_node.node_safe():
                 continue
+            if one_node.node_success(food):
+                return get_move_sequence(one_node)
+
             if str(one_node.snake_state[0]) in explored_cor:
                 continue
             else:
                 explored_cor.add(str(one_node.snake_state[0]))
                 tmp_node_list.append(one_node)
+
         distance_node_list = []
         for one_node in tmp_node_list:
-            distance_node_list.append((distance_function(one_node.snake_state[0],
-                                        food[0]),
-                                       one_node))
+            distance_node_list.append(
+                (distance_function(one_node.snake_state[0],food[0]),one_node)
+            )
 
-        distance_node_list.sort(key = lambda x:x[0],reverse = True)
+        distance_node_list.sort(key=lambda x: x[0], reverse=True)
         for one_node in distance_node_list:
             node_queue.insert(0,one_node[1])
+
     return None
 
 
-def depth_first_search(snake,direction,food):
+def depth_first_search(snake, direction, food, grow):
 
-    head_node = TreeNode(snake,None,0,direction)
+    head_node = TreeNode(snake, None, 0, direction)
     if head_node.node_success(food):
         return direction
 
@@ -181,12 +184,10 @@ def depth_first_search(snake,direction,food):
 
         tmp_node = node_queue.pop()
         for action in tmp_node.get_actions():
-            state = snake_state_change(tmp_node.snake_state, action)
+            state = snake_state_change(tmp_node.snake_state, action,grow)
             tmp_node.add_children(TreeNode(state, tmp_node, action, action))
-
+        grow = False
         for one_node in tmp_node.children:
-            # print(one_node.snake_state)
-            # print(one_node.snake_state,food)
             if one_node.node_success(food):
                 return get_move_sequence(one_node)
             if not one_node.node_safe():
@@ -199,9 +200,9 @@ def depth_first_search(snake,direction,food):
     return None
 
 
-def breadth_first_search(snake,direction,food):
+def breadth_first_search(snake, direction, food, grow):
 
-    head_node = TreeNode(snake,None,0,direction)
+    head_node = TreeNode(snake, None, 0, direction)
 
     if head_node.node_success(food):
         return direction
@@ -216,12 +217,10 @@ def breadth_first_search(snake,direction,food):
 
         tmp_node = node_queue.pop(0)
         for action in tmp_node.get_actions():
-            state = snake_state_change(tmp_node.snake_state,action)
-            tmp_node.add_children(TreeNode(state,tmp_node,action,action))
-
+            state = snake_state_change(tmp_node.snake_state, action,grow)
+            tmp_node.add_children(TreeNode(state, tmp_node, action, action))
+        grow = False
         for one_node in tmp_node.children:
-            #print(one_node.snake_state)
-            #print(one_node.snake_state,food)
             if one_node.node_success(food):
                 return get_move_sequence(one_node)
             if not one_node.node_safe():
@@ -233,32 +232,30 @@ def breadth_first_search(snake,direction,food):
                 node_queue.append(one_node)
     return None
 
-
-def get_snake_move(snake,direction,food):
-
+import traceback
+def get_snake_move(snake, direction, food, grow):
     """
-    :param snake: array_like [(x1,y1),(x2,y2)...]
+    :param snake: array_like [[x1,y1],[x2,y2]...]
                 all the position a snake take
 
     :param direction: int
 
-
     :param food: array_like  (x,y)
                 food cor
+
+    :param grow: bool
+                whether the snake will grow
 
     :return:
         move : int
             the direction you want to move
     """
     try:
-        sol = greedy_first_search(snake,direction,food)
-        print(sol)
+        sol = breadth_first_search(snake, direction, food, grow)
+        print("Solution:", sol)
         return sol
     except Exception as e:
-        print(e)
-
+        print(traceback.print_exc())
 
 if __name__ == "__main__":
     pass
-    #print(breadth_first_search([[1, 2], [1, 3]], [[7,7]]))
-    print(distance_function([1,1],[2,2]))

@@ -5,31 +5,34 @@
 
 import random
 import sys
+import traceback
 
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 
-
 from search import *
+
 
 class SnakeGame(QMainWindow):
     def __init__(self):
         super(SnakeGame, self).__init__()
-        self.sboard = Board(self)
 
+        self.board = Board(self)
         self.statusbar = self.statusBar()
-        self.sboard.msg2statusbar[str].connect(self.statusbar.showMessage)
+        self.board.msg2statusbar[str].connect(self.statusbar.showMessage)
 
-        self.setCentralWidget(self.sboard)
+        self.setCentralWidget(self.board)
         self.setWindowTitle('PyQt5 Snake game')
+
         self.resize(320, 340)
         screen = QDesktopWidget().screenGeometry()
         size = self.geometry()
         self.move((screen.width()-size.width())/2, (screen.height()-size.height())/2)
 
-        self.sboard.start()
+        self.board.start()
         self.show()
+
 
 class Board(QFrame):
     msg2statusbar = pyqtSignal(str)
@@ -38,8 +41,7 @@ class Board(QFrame):
     This speed is mean the timer's interval,
     so the value lower,the speed higher
     '''
-    SPEED = 150
-
+    SPEED = 20
     WIDTHINBLOCKS = X_nums
     HEIGHTINBLOCKS = Y_nums
 
@@ -47,21 +49,23 @@ class Board(QFrame):
         super(Board, self).__init__(parent)
         self.timer = QBasicTimer()
         self.running = False
-        self.snake = [[5, 5], [5, 6]]
+
+        self.snake, self.food, self.direction = [[5, 5], [5, 6]],[],4
+        self.drop_food()
+
         self.current_x_head = self.snake[0][0]
         self.current_y_head = self.snake[0][1]
+        self.pong = None
         self.key_map = {
                     'LEFT': 1,
                     'RIGHT': 2,
                     'DOWN': 3,
                     'UP': 4
                 }
-        self.food = []
+
         self.grow_snake = False
-        self.board = []
-        self.direction = 4
-        self.drop_food()
         self.move_solution = []
+        self.last_state = []
         self.setFocusPolicy(Qt.StrongFocus)
 
     def square_width(self):
@@ -71,14 +75,12 @@ class Board(QFrame):
         return int(self.contentsRect().height() / Board.HEIGHTINBLOCKS)
 
     def status_str(self):
-        return str("score:%d,head_x:%d,head_y:%d,food_x:%d,food_y:%d , x :%d,y:%d" % (
+        return str("score:%d,head_x:%d,head_y:%d,food_x:%d,food_y:%d" % (
                      len(self.snake) - 2,
                      self.current_x_head,
                      self.current_y_head,
                      self.food[0][0],
-                     self.food[0][1],
-                     self.snake[1][0],
-                     self.snake[1][1]
+                     self.food[0][1]
                     ))
 
     def start(self):
@@ -86,23 +88,26 @@ class Board(QFrame):
         self.timer.start(Board.SPEED, self)
         self.running = True
 
+    def draw_myself(self,x,y):
+        painter = QPainter(self)
+        rect = self.contentsRect()
+        board_top = rect.bottom() - Board.HEIGHTINBLOCKS * self.square_height()
+
+        color = 0xB22222
+        self.draw_square(painter, color, rect.left() + x * self.square_width(),
+                         board_top + y * self.square_height())
+
     def paintEvent(self, event):
         painter = QPainter(self)
         rect = self.contentsRect()
         boardtop = rect.bottom() - Board.HEIGHTINBLOCKS * self.square_height()
-        '''
-        #绘制网格线，有些密集
-        for x in range(self.WIDTHINBLOCKS):
-            painter.drawLine(x * self.square_width(),0,
-                             x * self.square_width(),
-                             (self.HEIGHTINBLOCKS + 1)*  self.square_height())
 
-        for y in range(0,self.HEIGHTINBLOCKS + 1):
-            painter.drawLine(0,y * self.square_height(),
-                             (self.WIDTHINBLOCKS + 1) * self.square_width(),
-                             y * self.square_height())
-        '''
-        for pos in self.snake:
+        pos = self.snake[0]
+        color = 0x00CD66
+        self.draw_square(painter, color,rect.left() + pos[0] * self.square_width(),
+                                          boardtop + pos[1] * self.square_height())
+
+        for pos in self.snake[1:]:
             color = 0xCC66CC
             self.draw_square(painter, color,rect.left() + pos[0] * self.square_width(),
                              boardtop + pos[1] * self.square_height())
@@ -111,6 +116,8 @@ class Board(QFrame):
             color = 0x000000
             self.draw_square(painter, color,rect.left() + pos[0] * self.square_width(),
                              boardtop + pos[1] * self.square_height())
+        if self.pong is not None:
+            self.draw_myself(self.pong[0],self.pong[1])
 
     def draw_square(self, painter, color, x, y):
         color = QColor(color)
@@ -134,13 +141,27 @@ class Board(QFrame):
 
         elif key == Qt.Key_Space:
 
-            if self.running == True:
+            if self.running:
                 self.running = False
                 self.timer.stop()
             else:
                 self.running = True
                 self.timer.start(Board.SPEED, self)
+        elif key == Qt.Key_Q:
+            if len(self.last_state) != 0:
+                self.snake = copy.deepcopy(self.last_state['snake_state'])
+                self.food = copy.deepcopy(self.last_state['food'])
+                self.direction = self.last_state['direction']
+                self.grow_snake = self.last_state['grow']
 
+                self.current_x_head = self.snake[0][0]
+                self.current_y_head = self.snake[0][1]
+                self.move_solution = []
+                self.last_state = {}
+                self.pong = None
+                self.update()
+                self.running = True
+                self.timer.start(Board.SPEED, self)
 
     def move_snake(self):
         if self.direction == self.key_map['LEFT']:
@@ -155,7 +176,6 @@ class Board(QFrame):
 
         if self.direction == self.key_map['DOWN']:
             self.current_x_head, self.current_y_head = self.current_x_head, self.current_y_head + 1
-            #这里跟其地方不太一样，是因为Y轴最下面那一块，有时候会被状态栏挡住
             if self.current_y_head >= Board.HEIGHTINBLOCKS:
                 self.current_y_head = 0
 
@@ -165,39 +185,47 @@ class Board(QFrame):
                 self.current_y_head = Board.HEIGHTINBLOCKS - 1
 
         head = [self.current_x_head, self.current_y_head]
-        self.snake.insert(0, head)
+        self.snake.insert(0, copy.deepcopy(head))
         self.msg2statusbar.emit(self.status_str())
-        if not self.grow_snake:
+
+        if not self.grow_snake :
             self.snake.pop()
         else:
             self.grow_snake = False
 
     def timerEvent(self, event):
         if event.timerId() == self.timer.timerId():
-
-            food = self.food
             try:
                 if len(self.move_solution) == 0:
-                    self.move_solution = get_snake_move(self.snake, self.direction, food)
+                    self.last_state = {
+                        "snake_state": copy.deepcopy(self.snake),
+                        "food": copy.deepcopy(self.food),
+                        "direction": self.direction,
+                        "grow": self.grow_snake
+                    }
+                    self.move_solution = get_snake_move(self.snake,
+                                                        self.direction,
+                                                        self.food,
+                                                        self.grow_snake)
                     self.direction = self.move_solution.pop(0)
                 else:
                     self.direction = self.move_solution.pop(0)
             except Exception as e:
-                print(e)
+                print(traceback.print_exc())
 
             self.move_snake()
+            i = self.is_suicide()
             self.is_food_collision()
-            self.is_suicide()
             self.update()
 
     def is_suicide(self):  # If snake collides with itself, game is over
         for i in range(1, len(self.snake)):
             if self.snake[i] == self.snake[0]:
-                self.msg2statusbar.emit(str("TRUP"))
-                self.snake = [[x, y] for x in range(0, 61) for y in range(0, 41)]
-                self.food = []
+                self.msg2statusbar.emit(self.status_str())
                 self.timer.stop()
-                self.update()
+                self.pong = self.snake[i]
+                return i
+        return 0
 
     def is_food_collision(self):
         for pos in self.food:
@@ -207,7 +235,6 @@ class Board(QFrame):
                 self.grow_snake = True
 
     def drop_food(self):
-
         x = random.randint(0, self.WIDTHINBLOCKS - 1)
         y = random.randint(0, self.HEIGHTINBLOCKS - 1)
         for pos in self.snake:  # Do not drop food on snake
@@ -215,6 +242,7 @@ class Board(QFrame):
                 self.drop_food()
                 return
         self.food.append([x, y])
+
 
 def main():
     app = QApplication([])

@@ -16,6 +16,6 @@ This Game will test some algorithms.
 广度优先可以理解为式最直观的，每次都是直线过去，但还是说不好
 
 下面这个图片是启发式算法运作的过程
-
+![Snake](https://github.com/Ah-Chao/pyqt5-snake/blob/master/snake.gif)
 - - -
 This is my first attempt to use github.

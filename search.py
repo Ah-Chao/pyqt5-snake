@@ -8,6 +8,11 @@ import traceback
 
 from snake import *
 
+# 这里应该再添加一个类似字典一样的东西，可以向外界说明我使用了什么类型的搜索算法
+# 而且，外界也应该能指定不同类型的
+
+__all__ = ['get_move_sequence']
+
 
 class Queue(object):
     def __init__(self):
@@ -32,7 +37,7 @@ class PriorityQueue(Queue):
 
     def add(self, element):
         distance = element.distance_function()
-        self.data_queue.append((distance,element))
+        self.data_queue.append((distance, element))
         self.data_queue.sort(key=lambda x: x[0])
 
     # 想知道子类怎么调用父类的方法
@@ -85,7 +90,7 @@ class StateNode(object):
         return path_list
 
 
-def first_search(state,queue):
+def first_search(state, queue):
     tmp_state = copy.deepcopy(state)
 
     head_node = StateNode(tmp_state, None, 0)

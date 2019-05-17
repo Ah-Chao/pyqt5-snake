@@ -9,6 +9,25 @@ import traceback
 from snake import *
 
 
+class Queue(object):
+    def __init__(self):
+        self.data_queue = list()
+
+    def add(self, data):
+        self.data_queue.append(data)
+
+    def pop(self, index=0):
+        return self.data_queue.pop(index)
+
+    def __len__(self):
+        return len(self.data_queue)
+
+
+class Stack(Queue):
+    def pop(self,index=-1):
+        return self.data_queue.pop(index)
+
+
 class StateNode(object):
     """
             This is the class object for node using in search algorithms.
@@ -54,18 +73,17 @@ class StateNode(object):
         return path_list
 
 
-def depth_first_search(state):
-
+def first_search(state,queue):
     tmp_state = copy.deepcopy(state)
 
     head_node = StateNode(tmp_state, None, 0)
-    node_queue = list()
+    node_queue = queue()
     explored_cor = set()
 
     if head_node.state_success():
         return 0
 
-    node_queue.append(head_node)
+    node_queue.add(head_node)
     explored_cor.add(str(head_node))
 
     while len(node_queue) > 0:
@@ -85,43 +103,17 @@ def depth_first_search(state):
                 continue
             else:
                 explored_cor.add(str(one_node))
-                node_queue.append(one_node)
+                node_queue.add(one_node)
 
     return None
+
+
+def depth_first_search(state):
+    return first_search(state, Stack)
 
 
 def breadth_first_search(state):
-    tmp_state = copy.deepcopy(state)
-    head_node = StateNode(tmp_state, None, 0)
-    node_queue = list()
-    explored_cor = set()
-
-    if head_node.state_success():
-        return 0
-
-    node_queue.append(head_node)
-    explored_cor.add(str(head_node))
-
-    while len(node_queue) > 0:
-        tmp_node = node_queue.pop(0)
-
-        for action in tmp_node.get_actions():
-            new_state = tmp_node.state_change(action)
-            tmp_node.add_child(new_state)
-
-        for one_node in tmp_node.children:
-            if not one_node.state_normal():
-                continue
-            if one_node.state_success():
-                return one_node.action_list()
-
-            if str(one_node) in explored_cor:
-                continue
-            else:
-                explored_cor.add(str(one_node))
-                node_queue.append(one_node)
-
-    return None
+    return first_search(state, Queue)
 
 
 def greedy_first_search(state):
@@ -160,6 +152,7 @@ def greedy_first_search(state):
                 explored_cor.add(str(one_node))
                 tmp_node_list.append(one_node)
 
+        # 我这里的这个优先级队列，其实是有些瑕疵的，我这个本质上只对新添加的几个进行了优先级排列
         distance_node_list = []
         for one_node in tmp_node_list:
             distance_node_list.append(
@@ -175,7 +168,7 @@ def greedy_first_search(state):
 
 def get_move_sequence(snake_state):
     try:
-        sol = breadth_first_search(snake_state)
+        sol = depth_first_search(snake_state)
         return sol
     except Exception as e:
         traceback.print_exc()

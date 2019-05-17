@@ -56,15 +56,16 @@ class Board(QFrame):
         self.state = SnakeState()
         self.state.init_by_game()
         self.next_action = 0
-        self.pong = None
 
         self.last_state = copy.deepcopy(self.state)
         self.move_solution = []
 
+        # 如果不设置这个选项，无法获取键盘击键时间
         self.setFocusPolicy(Qt.StrongFocus)
 
-    # 尝试着删除过这里两个函数，但最后就是一个非常小的画了，感觉应该是这个东西在实质开始之后就不变了
+    # 尝试着删除过这里两个函数，但最后就是一个非常小的画了
     # 我感觉应该是他底层的gui的机制
+    # 即使在上层类调用start后，他的实际数值仍然不是大的（已测试）
     def square_width(self):
         return int(self.contentsRect().width() / Board.WIDTH_BLOCKS)
 
@@ -76,61 +77,44 @@ class Board(QFrame):
         self.timer.start(Board.SPEED, self)
         self.running = True
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
+    def board_info(self):
         rect = self.contentsRect()
         width = self.square_width()
         height = self.square_height()
         board_top = rect.bottom() - Board.HEIGHT_BLOCKS * height
+        return rect, width, height, board_top
 
-        state = self.state.get_state_by_game()
-        snake = state[0]
-        food = state[1]
-        pong = state[2]
-        self.pong = pong
-
-        pos = snake[0]
-        color = 0x00CD66
-        self.draw_square(
-                painter, color,
-                rect.left() + pos[0] * width,
-                board_top + pos[1] * height
-            )
-
-        for pos in snake[1:]:
-            color = 0xCC66CC
-            self.draw_square(
-                painter, color,
-                rect.left() + pos[0] * width,
-                board_top + pos[1] * height
-            )
-
-        for pos in food:
-            color = 0x000000
-            self.draw_square(
-                painter, color,
-                rect.left() + pos[0] * width,
-                board_top + pos[1] * height
-            )
-
-        if pong is not None:
-            self.draw_myself(pong[0], pong[1])
-
-    def draw_myself(self, x, y):
+    def paintEvent(self, event):
         painter = QPainter(self)
-        rect = self.contentsRect()
-        board_top = rect.bottom() - Board.HEIGHT_BLOCKS * self.square_height()
+        rect, width, height, board_top = self.board_info()
+        snake, food, pong = self.state.get_state_by_game()
 
-        color = 0xB22222
-        self.draw_square(painter, color, rect.left() + x * self.square_width(),
-                         board_top + y * self.square_height())
+        draw_variable = [
+            [0x00CD66, [snake[0]]],
+            [0xCC66CC, snake[1:]],
+            [0x000000, food],
+            [0xB22222, [pong]]
+        ]
 
-    def draw_square(self, painter, color, x, y):
+        for one_var in draw_variable:
+            color = one_var[0]
+            for pos in one_var[1]:
+                self.draw_square(
+                    painter, color,
+                    width, height,
+                    rect.left() + pos[0] * width,
+                    board_top + pos[1] * height
+                )
+
+    @staticmethod
+    def draw_square(painter, color, width, height, x, y):
         color = QColor(color)
         painter.fillRect(
-            x + 1, y + 1,
-            self.square_width() - 2,
-            self.square_height() - 2, color
+            x + 1,
+            y + 1,
+            width - 2,
+            height - 2,
+            color
         )
 
     def keyPressEvent(self, event):
@@ -169,7 +153,6 @@ class Board(QFrame):
             try:
                 if len(self.move_solution) == 0:
                     self.last_state = copy.deepcopy(self.state)
-                    print(self.last_state.snake, self.last_state.food, self.last_state.direction)
                     self.move_solution = get_move_sequence(self.state)
                 self.next_action = self.move_solution.pop(0)
 

@@ -24,8 +24,20 @@ class Queue(object):
 
 
 class Stack(Queue):
-    def pop(self,index=-1):
+    def pop(self, index=-1):
         return self.data_queue.pop(index)
+
+
+class PriorityQueue(Queue):
+
+    def add(self, element):
+        distance = element.distance_function()
+        self.data_queue.append((distance,element))
+        self.data_queue.sort(key=lambda x: x[0])
+
+    # 想知道子类怎么调用父类的方法
+    def pop(self, index=0):
+        return self.data_queue.pop(index)[1]
 
 
 class StateNode(object):
@@ -117,58 +129,12 @@ def breadth_first_search(state):
 
 
 def greedy_first_search(state):
-    tmp_state = copy.deepcopy(state)
-
-    head_node = StateNode(tmp_state, None, 0)
-    node_queue = list()
-    explored_cor = set()
-
-    if head_node.state_success():
-        return 0
-
-    node_queue.append(head_node)
-    explored_cor.add(str(head_node))
-
-    while len(node_queue) > 0:
-        tmp_node = node_queue.pop(0)
-
-        for action in tmp_node.get_actions():
-
-            new_state = tmp_node.state_change(action)
-            tmp_node.add_child(new_state)
-
-        tmp_node_list = []
-        for one_node in tmp_node.children:
-            if not one_node.state_normal():
-                continue
-            if one_node.state_success():
-                return one_node.action_list()
-
-            # 我记得，这一块的代码，可能有些不对，书上的代码是考虑了一些函数值，
-            # 虽然现在算是工作了，但实际上还是不太对，
-            if str(one_node) in explored_cor:
-                continue
-            else:
-                explored_cor.add(str(one_node))
-                tmp_node_list.append(one_node)
-
-        # 我这里的这个优先级队列，其实是有些瑕疵的，我这个本质上只对新添加的几个进行了优先级排列
-        distance_node_list = []
-        for one_node in tmp_node_list:
-            distance_node_list.append(
-                (one_node.distance_function(), one_node)
-            )
-
-        distance_node_list.sort(key=lambda x: x[0], reverse=True)
-        for one_node in distance_node_list:
-            node_queue.insert(0, one_node[1])
-
-    return None
+    return first_search(state, PriorityQueue)
 
 
 def get_move_sequence(snake_state):
     try:
-        sol = depth_first_search(snake_state)
+        sol = greedy_first_search(snake_state)
         return sol
     except Exception as e:
         traceback.print_exc()

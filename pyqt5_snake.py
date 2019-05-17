@@ -43,10 +43,16 @@ class Board(QFrame):
     This speed is mean the timer's interval,
     so the value lower,the speed higher
     '''
-    SPEED = 60
+    SPEED = 150
     # The nums of blocks
     WIDTH_BLOCKS = X_nums
     HEIGHT_BLOCKS = Y_nums
+    KEY2MAP = {
+        Qt.Key_Left: key_map['LEFT'],
+        Qt.Key_Right: key_map['RIGHT'],
+        Qt.Key_Down: key_map['DOWN'],
+        Qt.Key_Up: key_map['UP']
+    }
 
     def __init__(self, parent):
         super(Board, self).__init__(parent)
@@ -60,6 +66,8 @@ class Board(QFrame):
         self.last_state = copy.deepcopy(self.state)
         self.move_solution = []
 
+        self.auto_exec = False
+        self.key_queue = []
         # 如果不设置这个选项，无法获取键盘击键时间
         self.setFocusPolicy(Qt.StrongFocus)
 
@@ -120,18 +128,8 @@ class Board(QFrame):
     def keyPressEvent(self, event):
         key = event.key()
 
-        if key == Qt.Key_Left:
-            if self.state.direction != key_map['RIGHT']:
-                self.state.direction = key_map['LEFT']
-        elif key == Qt.Key_Right:
-            if self.state.direction != key_map['LEFT']:
-                self.state.direction = key_map['RIGHT']
-        elif key == Qt.Key_Down:
-            if self.state.direction != key_map['UP']:
-                self.state.direction = key_map['DOWN']
-        elif key == Qt.Key_Up:
-            if self.state.direction != key_map['DOWN']:
-                self.state.direction = key_map['UP']
+        if key in [Qt.Key_Left, Qt.Key_Right, Qt.Key_Down, Qt.Key_Up]:
+            self.key_queue.append(key)
 
         elif key == Qt.Key_Space:
             if self.running:
@@ -150,14 +148,26 @@ class Board(QFrame):
 
     def timerEvent(self, event):
         if event.timerId() == self.timer.timerId():
-            try:
-                if len(self.move_solution) == 0:
-                    self.last_state = copy.deepcopy(self.state)
-                    self.move_solution = get_move_sequence(self.state)
-                self.next_action = self.move_solution.pop(0)
+            if self.auto_exec:
+                try:
+                    if len(self.move_solution) == 0:
+                        self.last_state = copy.deepcopy(self.state)
+                        self.move_solution = get_move_sequence(self.state)
+                    self.next_action = self.move_solution.pop(0)
 
-            except Exception as e:
-                traceback.print_exc()
+                except Exception as e:
+                    traceback.print_exc()
+            else:
+                # 注意，这里对于击键队列来说，选择只相应最后一次的击键
+                # 不然一个阶段里面相应多个击键显得很突兀
+                try:
+                    key = self.KEY2MAP[self.key_queue.pop()]
+                    self.key_queue = []
+                except IndexError:
+                    key = self.state.direction
+
+                self.state.change_direction_for_game(key)
+                self.next_action = self.state.direction
 
             self.state.next_state_for_game(self.next_action)
             self.msg2statusbar.emit(self.state.status_str())

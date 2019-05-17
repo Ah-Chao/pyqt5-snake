@@ -17,10 +17,13 @@ key_map = {
     'DOWN': 3,
     'UP': 4
 }
-actions = [[1, 3, 4],
-           [2, 3, 4],
-           [1, 2, 3],
-           [1, 2, 4]]
+
+actions = [
+    [1, 3, 4],
+    [2, 3, 4],
+    [1, 2, 3],
+    [1, 2, 4]
+]
 
 
 class SnakeState(object):
@@ -29,7 +32,7 @@ class SnakeState(object):
         self.food = copy.deepcopy(food)
         self.direction = direction
         self.grow = grow
-        self.pong = None
+        self.pong = [-1,-1]
 
     def init_by_game(self):
         # direction = random.randint(1,4)
@@ -59,6 +62,32 @@ class SnakeState(object):
     def get_actions(self):
         return actions[self.direction - 1]
 
+    @staticmethod
+    def head_change(current_x_head, current_y_head, action):
+
+        if action == key_map['LEFT']:
+            current_x_head, current_y_head = current_x_head - 1, current_y_head
+            if current_x_head < 0:
+                current_x_head = X_nums - 1
+
+        if action == key_map['RIGHT']:
+            current_x_head, current_y_head = current_x_head + 1, current_y_head
+            if current_x_head >= X_nums:
+                current_x_head = 0
+
+        if action == key_map['DOWN']:
+            current_x_head, current_y_head = current_x_head, current_y_head + 1
+            if current_y_head >= Y_nums:
+                current_y_head = 0
+
+        if action == key_map['UP']:
+            current_x_head, current_y_head = current_x_head, current_y_head - 1
+            if current_y_head < 0:
+                current_y_head = Y_nums - 1
+
+        head = [current_x_head, current_y_head]
+        return head
+
     def drop_food(self):
         x = random.randint(0, X_nums - 1)
         y = random.randint(0, Y_nums - 1)
@@ -69,6 +98,12 @@ class SnakeState(object):
                 return
         self.food.append([x, y])
 
+    def is_success(self):
+        for pos in self.food:
+            if pos == self.snake[0]:
+                return True
+        return False
+
     def is_success_for_game(self):
         if self.is_success():
             self.food.pop()
@@ -76,30 +111,8 @@ class SnakeState(object):
             self.grow = True
 
     def next_state_for_game(self, action):
-        current_x_head = self.snake[0][0]
-        current_y_head = self.snake[0][1]
 
-        if action == key_map['LEFT']:
-            current_x_head, current_y_head = current_x_head - 1, current_y_head
-            if current_x_head < 0:
-                current_x_head = X_nums - 1
-
-        if action == key_map['RIGHT']:
-            current_x_head, current_y_head = current_x_head + 1, current_y_head
-            if current_x_head >= X_nums:
-                current_x_head = 0
-
-        if action == key_map['DOWN']:
-            current_x_head, current_y_head = current_x_head, current_y_head + 1
-            if current_y_head >= Y_nums:
-                current_y_head = 0
-
-        if action == key_map['UP']:
-            current_x_head, current_y_head = current_x_head, current_y_head - 1
-            if current_y_head < 0:
-                current_y_head = Y_nums - 1
-
-        head = [current_x_head, current_y_head]
+        head = self.head_change(self.snake[0][0], self.snake[0][1], action)
         self.snake.insert(0, head)
         if not self.grow:
             self.snake.pop()
@@ -110,30 +123,8 @@ class SnakeState(object):
 
         snake = copy.deepcopy(self.snake)
         food = copy.deepcopy(self.food)
-        current_x_head = self.snake[0][0]
-        current_y_head = self.snake[0][1]
 
-        if action == key_map['LEFT']:
-            current_x_head, current_y_head = current_x_head - 1, current_y_head
-            if current_x_head < 0:
-                current_x_head = X_nums - 1
-
-        if action == key_map['RIGHT']:
-            current_x_head, current_y_head = current_x_head + 1, current_y_head
-            if current_x_head >= X_nums:
-                current_x_head = 0
-
-        if action == key_map['DOWN']:
-            current_x_head, current_y_head = current_x_head, current_y_head + 1
-            if current_y_head >= Y_nums:
-                current_y_head = 0
-
-        if action == key_map['UP']:
-            current_x_head, current_y_head = current_x_head, current_y_head - 1
-            if current_y_head < 0:
-                current_y_head = Y_nums - 1
-
-        head = [current_x_head, current_y_head]
+        head = self.head_change(snake[0][0], snake[0][1], action)
 
         snake.insert(0, head)
         if not self.grow:
@@ -148,14 +139,8 @@ class SnakeState(object):
                 return False
         return True
 
-    def is_success(self):
-        for pos in self.food:
-            if pos == self.snake[0]:
-                return True
-        return False
-
     def distance_function(self):
         return math.sqrt(
-            pow(self.snake[0][0] - self.food[0][0], 2) +
-            pow(self.snake[0][1] - self.food[0][1], 2)
+            (self.snake[0][0] - self.food[0][0]) ** 2 +
+            (self.snake[0][1] - self.food[0][1]) ** 2
         )

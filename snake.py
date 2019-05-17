@@ -6,7 +6,6 @@
 import random
 import copy
 import math
-import traceback
 
 X_nums = 12
 Y_nums = 12
@@ -32,35 +31,38 @@ class SnakeState(object):
         self.food = copy.deepcopy(food)
         self.direction = direction
         self.grow = grow
-        self.pong = [-1,-1]
+        self.pong = [-1, -1]
+
+    def __str__(self):
+        return str(self.snake[0])
 
     def init_by_game(self):
-        # direction = random.randint(1,4)
+        direction = random.randint(1, 4)
         x = random.randint(0, X_nums - 1)
         y = random.randint(0, Y_nums - 1)
 
-        self.snake = [[x, y], [x, 11]]
-        self.direction = 1
+        self.snake = [[x, y]]
+        self.direction = direction
+        self.grow = True
+        self.next_state_for_game(self.direction)
         self.drop_food()
 
     def status_str(self):
-        return str("score:%d,head_x:%d,head_y:%d,food_x:%d,food_y:%d" % (
+        return str(
+            "score:%d,head_x:%d,head_y:%d,food_x:%d,food_y:%d" % (
                 len(self.snake) - 2,
                 self.snake[0][0],
                 self.snake[0][1],
                 self.food[0][0],
                 self.food[0][1]
-                )
+            )
         )
-
-    def __str__(self):
-        return str(self.snake[0])
-
-    def get_state_by_game(self):
-        return self.snake, self.food, self.pong
 
     def get_actions(self):
         return actions[self.direction - 1]
+
+    def get_state_by_game(self):
+        return self.snake, self.food, self.pong
 
     @staticmethod
     def head_change(current_x_head, current_y_head, action):
@@ -109,6 +111,20 @@ class SnakeState(object):
             self.food.pop()
             self.drop_food()
             self.grow = True
+
+    def change_direction_for_game(self, key):
+        if key == key_map['LEFT']:
+            if self.direction != key_map['RIGHT']:
+                self.direction = key_map['LEFT']
+        elif key == key_map['RIGHT']:
+            if self.direction != key_map['LEFT']:
+                self.direction = key_map['RIGHT']
+        elif key == key_map['DOWN']:
+            if self.direction != key_map['UP']:
+                self.direction = key_map['DOWN']
+        elif key == key_map['UP']:
+            if self.direction != key_map['DOWN']:
+                self.direction = key_map['UP']
 
     def next_state_for_game(self, action):
 

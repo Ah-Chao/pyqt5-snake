@@ -139,12 +139,16 @@ class Board(QFrame):
                 self.running = True
                 self.timer.start(Board.SPEED, self)
 
-        elif key == Qt.Key_Q:
+        elif key == Qt.Key_P:
             self.state = copy.deepcopy(self.last_state)
             self.move_solution = []
             self.update()
             self.running = True
             self.timer.start(Board.SPEED, self)
+
+        elif key == Qt.Key_Q:
+            self.auto_exec = not self.auto_exec
+            self.move_solution = []
 
     def timerEvent(self, event):
         if event.timerId() == self.timer.timerId():
